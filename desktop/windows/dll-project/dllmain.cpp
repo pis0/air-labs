@@ -1,5 +1,5 @@
 // dllmain.cpp : Define o ponto de entrada para o aplicativo DLL.
-#include "pch.h"
+#include "pch.h" 
 #include <FlashRuntimeExtensions.h>
 #include <string>
 #include <assert.h>
