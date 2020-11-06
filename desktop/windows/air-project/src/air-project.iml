@@ -7,7 +7,7 @@
           <sdk name="_airSDK" />
         </dependencies>
         <compiler-options />
-        <packaging-air-desktop package-file-name="airApp" />
+        <packaging-air-desktop package-file-name="air-app" />
         <packaging-android />
         <packaging-ios />
       </configuration>
