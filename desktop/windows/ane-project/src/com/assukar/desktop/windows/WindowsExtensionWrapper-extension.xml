@@ -3,7 +3,7 @@
 
     <!-- This is the extension ID: the same unique string
            you defined in WindowsExtensionWrapper.as -->
-    <id>com.diadraw.extensions.tutorial.WindowsExtension</id>
+    <id>com.assukar.desktop.windows.WindowsExtension</id>
 
     <versionNumber>1.0.0</versionNumber>
 
