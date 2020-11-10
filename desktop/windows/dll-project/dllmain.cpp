@@ -3,49 +3,81 @@
 #include <FlashRuntimeExtensions.h>
 #include <string>
 #include <assert.h>
-#include <sstream> 
-#include <intrin.h>
+#include <sstream>   
 
-void cpuid(uint32_t op, uint32_t& eax, uint32_t& ebx, uint32_t& ecx, uint32_t& edx)
+#include <iostream>
+#include <algorithm>
+#include <regex>
+
+
+std::string getUUID()
 {
-	int regs[4];
-	__cpuid(regs, op);
-	eax = regs[0];
-	ebx = regs[1];
-	ecx = regs[2];
-	edx = regs[3];
-}
-enum CpuidFeatures
-{
-	PSN = 1 << 18, 
-};
+	FILE* pipe = _popen("wmic csproduct get UUID | find /v \"UUID\"", "r");
+	if (pipe == NULL) return "N/A";
 
-// TODO to fix
-uint32_t cpuid_features()
-{
-	uint32_t eax, ebx, ecx, edx;
-	cpuid(PSN, eax, ebx, ecx, edx);
+	char buffer[128];
+	std::stringstream  stros;
+	while (fgets(buffer, sizeof buffer, pipe) != NULL) stros << buffer;
+	_pclose(pipe);
 
-	// byte swap
-	int first = ((eax >> 24) & 0xff) | ((eax << 8) & 0xff0000) | ((eax >> 8) & 0xff00) | ((eax << 24) & 0xff000000);
-	int last = ((edx >> 24) & 0xff) | ((edx << 8) & 0xff0000) | ((edx >> 8) & 0xff00) | ((edx << 24) & 0xff000000);
+	std::string temp = stros.str();
 
-	std::stringstream buffer;
+	std::regex newlines_re("\n\r+");
+	auto result = std::regex_replace(temp, newlines_re, " ");
 
-	scanf_s("%08X%08X", first, last);
-
-	return edx;
-}
-std::string getProcessorSerialNumber()
-{
-	std::stringstream buffer;
-	buffer << cpuid_features() << std::endl;
-	return buffer.str();
+	return temp;
 }
 
+std::string getHardwareProfileGuid()
+{
+	const int uuidLength = 39;
+	char uuid[uuidLength] = { 0 };
+	HW_PROFILE_INFO hwProfileInfo;
+	if (GetCurrentHwProfile(&hwProfileInfo)) 
+	{
+		sprintf_s(uuid, uuidLength, "%ws", hwProfileInfo.szHwProfileGuid);
+		std::string result(uuid); 
 
+		return result.substr(1, uuidLength - 3);
+	}
+	return "N/A";	
+}
+
+std::string getDiskDrivePNPDeviceId()
+{
+	FILE* pipe = _popen("wmic diskdrive get Name,PNPDeviceId | find \"PHYSICALDRIVE0\"", "r");    
+	if (pipe == NULL) return "N/A";
+
+	char buffer[128];
+	std::stringstream stros;
+	while (fgets(buffer, sizeof buffer, pipe) != NULL) stros << buffer;
+	_pclose(pipe);
+
+	return stros.str().substr(20, stros.str().length() - 20);
+}
+
+std::string getMachineGuid()
+{
+	std::string ret = "N/A"; 
+	char value[64];
+	DWORD size = _countof(value);
+	DWORD type = REG_SZ;
+	HKEY key;
+	LONG retKey = ::RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Cryptography", 0, KEY_READ | KEY_WOW64_64KEY, &key); 
+	LONG retVal = ::RegQueryValueExA(key, "MachineGuid", nullptr, &type, (LPBYTE)value, &size);
+	if (retKey == ERROR_SUCCESS && retVal == ERROR_SUCCESS) {
+		ret = value;
+	}
+	::RegCloseKey(key); 
+
+	return ret; 
+}
+
+/*
 std::string getVolumeSerialNumber()
 {
+	const int volumeSerialLength = 9;
+	char volumeSerial[volumeSerialLength] = { 0 };
 	DWORD volumeSerialNumber = NULL;
 	if (GetVolumeInformationA(
 		NULL,
@@ -56,16 +88,59 @@ std::string getVolumeSerialNumber()
 		NULL,
 		NULL,
 		NULL
-	) == 0)
+	) == 0) 
 	{
 		return "N/A";
 	}
 
-	std::string stringVolumeSerialNumber = std::to_string(volumeSerialNumber);
-	return stringVolumeSerialNumber;
+	sprintf_s(volumeSerial, volumeSerialLength, "%08lX", volumeSerialNumber);
+	std::string result(volumeSerial);
+
+	return result;
+}
+*/
+
+/*
+std::string getProcessorId()
+{
+	FILE* pipe = _popen("wmic cpu get ProcessorId | find /v \"ProcessorId\"", "r");
+	if (pipe == NULL) return "N/A";
+
+	char buffer[128];
+	std::stringstream  stros;
+	while (fgets(buffer, sizeof buffer, pipe) != NULL) stros << buffer;
+	_pclose(pipe);
+
+	return stros.str();
+}
+*/
+
+
+
+
+FREObject ASGetHardwareInfo(FREContext ctx, void* funcData, uint32_t argc, FREObject argv[])
+{
+	FREObject retObj = NULL;
+
+	std::stringstream  buffer;
+	buffer << "{";
+	buffer << "\"uuid\": \"" << getUUID() << "\", ";
+	buffer << "\"hardwareProfileGuid\": \"" << getHardwareProfileGuid() << "\", ";
+	buffer << "\"diskDrivePNPDeviceId\": \"" << getDiskDrivePNPDeviceId() << "\", ";
+	buffer << "\"machineGuid\": \"" << getMachineGuid() << "\" ";	
+	buffer << "}";
+
+	std::string bufferString = buffer.str();
+
+	const uint8_t* result = reinterpret_cast<const uint8_t*>(bufferString.c_str());
+	FRENewObjectFromUTF8(bufferString.size(), result, &retObj); 
+
+	return retObj;
 }
 
-FREObject ASPassAString(FREContext ctx, void* funcData, uint32_t argc, FREObject argv[]) 
+
+/*
+FREObject ASPassAString(FREContext ctx, void* funcData, uint32_t argc, FREObject argv[])
 {
 
 	// What this function does: reads a string passed in from ActionScript,
@@ -78,7 +153,6 @@ FREObject ASPassAString(FREContext ctx, void* funcData, uint32_t argc, FREObject
 	enum
 	{
 		ARG_STRING_ARGUMENT = 0,
-
 		ARG_COUNT
 	};
 
@@ -99,8 +173,7 @@ FREObject ASPassAString(FREContext ctx, void* funcData, uint32_t argc, FREObject
 
 	if ((FRE_OK == status) && (0 < strLength) && (NULL != nativeCharArray))
 	{
-		/*
-		// Read the characters into a c string... 
+		// Read the characters into a c string...
 		std::string nativeString((const char*)nativeCharArray);
 		// ...and output it into the console to see what we received:
 		std::stringstream  stros;
@@ -108,19 +181,12 @@ FREObject ASPassAString(FREContext ctx, void* funcData, uint32_t argc, FREObject
 		stros << nativeString;
 		// Now let's put the characters back into a FREObject...
 		FRENewObjectFromUTF8(strLength, nativeCharArray, &retObj);
-		*/
-
-		// TODO to review 
-		std::string machineGuid = getProcessorSerialNumber(); // getVolumeSerialNumber(); 
-		const uint8_t* result = reinterpret_cast<const uint8_t*>(machineGuid.c_str()); 
-		FRENewObjectFromUTF8(machineGuid.size(), result, &retObj);
-
 	}
 
 	// ... and send them back to ActionScript:
 	return retObj;
 }
-
+*/
 
 void contextFinalizer(FREContext ctx)
 {
@@ -143,7 +209,7 @@ void contextInitializer(
 	//   a pointer to the implementation of the function in the native library }
 	static FRENamedFunction extensionFunctions[] =
 	{
-		{ (const uint8_t*)"as_passAString",NULL, &ASPassAString }
+		{ (const uint8_t*)"as_getHardwareInfo",NULL, &ASGetHardwareInfo }
 	};
 
 	// Tell AIR how many functions there are in the array:

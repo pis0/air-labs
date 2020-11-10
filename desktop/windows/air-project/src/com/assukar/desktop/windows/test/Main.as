@@ -11,18 +11,18 @@ public class Main extends Sprite {
 
     public function Main() {
 
-
         var message:String = "Hello, World";
 
         var textField:TextField = new TextField();
         textField.appendText(message);
         textField.appendText('\n');
         m_ext = new WindowsExtensionWrapper();
-        textField.appendText(m_ext.passString(message));
 
-        addChild(textField);
+        trace('HERE', m_ext.getHardwareInfo());
 
+        //textField.appendText(m_ext.passString(message));
 
+        addChild(textField)
     }
 }
 }

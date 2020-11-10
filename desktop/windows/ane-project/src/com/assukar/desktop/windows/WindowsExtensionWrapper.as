@@ -27,11 +27,15 @@ public class WindowsExtensionWrapper extends EventDispatcher {
     // The extension ID needs to be a unique string:
     private static const EXTENSION_ID:String = "com.assukar.desktop.windows.WindowsExtension";
 
-    public function passString(_message:String):String {
-        // Calls the ASPassAString function (exposed as "as_passAString" to ActionScript)
-        // that we defined in dllMain.cpp:
-        // passes a string to it and expects a strnig back.
-        return m_extContext.call("as_passAString", _message) as String;
+    public function getHardwareInfo():String {
+        return m_extContext.call("as_getHardwareInfo") as String;
     }
+
+//    public function passString(_message:String):String {
+//        // Calls the ASPassAString function (exposed as "as_passAString" to ActionScript)
+//        // that we defined in dllMain.cpp:
+//        // passes a string to it and expects a strnig back.
+//        return m_extContext.call("as_passAString", _message) as String;
+//    }
 }
 }
