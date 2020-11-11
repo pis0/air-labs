@@ -9,6 +9,17 @@
 #include <algorithm>
 #include <regex>
 
+std::string filter(std::string s)
+{
+	std::regex newlines_r("\r+");
+	auto result_r = std::regex_replace(s, newlines_r, "");
+	std::regex newlines_n("\n+");
+	auto result_n = std::regex_replace(result_r, newlines_n, "");
+	std::regex linespace(" +");
+	auto result_ls = std::regex_replace(result_n, linespace, ""); 
+
+	return result_ls;
+}
 
 std::string getUUID()
 {
@@ -20,12 +31,7 @@ std::string getUUID()
 	while (fgets(buffer, sizeof buffer, pipe) != NULL) stros << buffer;
 	_pclose(pipe);
 
-	std::string temp = stros.str();
-
-	std::regex newlines_re("\n\r+");
-	auto result = std::regex_replace(temp, newlines_re, " ");
-
-	return temp;
+	return filter(stros.str());
 }
 
 std::string getHardwareProfileGuid()
@@ -38,7 +44,7 @@ std::string getHardwareProfileGuid()
 		sprintf_s(uuid, uuidLength, "%ws", hwProfileInfo.szHwProfileGuid);
 		std::string result(uuid); 
 
-		return result.substr(1, uuidLength - 3);
+		return filter(result.substr(1, uuidLength - 3)); 
 	}
 	return "N/A";	
 }
@@ -53,27 +59,26 @@ std::string getDiskDrivePNPDeviceId()
 	while (fgets(buffer, sizeof buffer, pipe) != NULL) stros << buffer;
 	_pclose(pipe);
 
-	return stros.str().substr(20, stros.str().length() - 20);
+	return filter(stros.str().substr(20, stros.str().length() - 20));
 }
 
 std::string getMachineGuid()
 {
-	std::string ret = "N/A"; 
+	std::string ret = "N/A";
 	char value[64];
 	DWORD size = _countof(value);
 	DWORD type = REG_SZ;
 	HKEY key;
-	LONG retKey = ::RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Cryptography", 0, KEY_READ | KEY_WOW64_64KEY, &key); 
+	LONG retKey = ::RegOpenKeyExA(HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Cryptography", 0, KEY_READ | KEY_WOW64_64KEY, &key);
 	LONG retVal = ::RegQueryValueExA(key, "MachineGuid", nullptr, &type, (LPBYTE)value, &size);
 	if (retKey == ERROR_SUCCESS && retVal == ERROR_SUCCESS) {
 		ret = value;
 	}
-	::RegCloseKey(key); 
+	::RegCloseKey(key);
 
-	return ret; 
+	return filter(ret);
 }
 
-/*
 std::string getVolumeSerialNumber()
 {
 	const int volumeSerialLength = 9;
@@ -96,11 +101,9 @@ std::string getVolumeSerialNumber()
 	sprintf_s(volumeSerial, volumeSerialLength, "%08lX", volumeSerialNumber);
 	std::string result(volumeSerial);
 
-	return result;
+	return filter(result);
 }
-*/
 
-/*
 std::string getProcessorId()
 {
 	FILE* pipe = _popen("wmic cpu get ProcessorId | find /v \"ProcessorId\"", "r");
@@ -111,9 +114,10 @@ std::string getProcessorId()
 	while (fgets(buffer, sizeof buffer, pipe) != NULL) stros << buffer;
 	_pclose(pipe);
 
-	return stros.str();
+	return filter(stros.str());
 }
-*/
+
+
 
 
 
@@ -122,12 +126,14 @@ FREObject ASGetHardwareInfo(FREContext ctx, void* funcData, uint32_t argc, FREOb
 {
 	FREObject retObj = NULL;
 
-	std::stringstream  buffer;
+	std::stringstream  buffer; 
 	buffer << "{";
-	buffer << "\"uuid\": \"" << getUUID() << "\", ";
-	buffer << "\"hardwareProfileGuid\": \"" << getHardwareProfileGuid() << "\", ";
-	buffer << "\"diskDrivePNPDeviceId\": \"" << getDiskDrivePNPDeviceId() << "\", ";
-	buffer << "\"machineGuid\": \"" << getMachineGuid() << "\" ";	
+	buffer << "\"uuid\":\"" << getUUID() << "\",";
+	buffer << "\"hardwareProfileGuid\":\"" << getHardwareProfileGuid() << "\",";
+	//buffer << "\"diskDrivePNPDeviceId\":\"" << getDiskDrivePNPDeviceId() << "\",";
+	buffer << "\"machineGuid\":\"" << getMachineGuid() << "\",";	
+	buffer << "\"processorId\":\"" << getProcessorId() << "\",";
+	buffer << "\"volumeSerialNumber\":\"" << getVolumeSerialNumber() << "\""; 
 	buffer << "}";
 
 	std::string bufferString = buffer.str();
