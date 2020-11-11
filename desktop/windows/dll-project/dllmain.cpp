@@ -11,14 +11,30 @@
 
 std::string filter(std::string s)
 {
+	/*
 	std::regex newlines_r("\r+");
 	auto result_r = std::regex_replace(s, newlines_r, "");
 	std::regex newlines_n("\n+");
 	auto result_n = std::regex_replace(result_r, newlines_n, "");
 	std::regex linespace(" +");
 	auto result_ls = std::regex_replace(result_n, linespace, ""); 
+	*/
 
-	return result_ls;
+	s.erase(std::remove_if(
+		s.begin(),
+		s.end(),
+		[](char c) { return std::isspace(c) || std::iscntrl(c); }), 
+		s.end() 
+	); 
+
+	std::replace(
+		s.begin(),
+		s.end(),
+		'\\', 
+		'-'
+	); 
+
+	return s;
 }
 
 std::string getUUID()
@@ -130,7 +146,7 @@ FREObject ASGetHardwareInfo(FREContext ctx, void* funcData, uint32_t argc, FREOb
 	buffer << "{";
 	buffer << "\"uuid\":\"" << getUUID() << "\",";
 	buffer << "\"hardwareProfileGuid\":\"" << getHardwareProfileGuid() << "\",";
-	//buffer << "\"diskDrivePNPDeviceId\":\"" << getDiskDrivePNPDeviceId() << "\",";
+	buffer << "\"diskDrivePNPDeviceId\":\"" << getDiskDrivePNPDeviceId() << "\",";
 	buffer << "\"machineGuid\":\"" << getMachineGuid() << "\",";	
 	buffer << "\"processorId\":\"" << getProcessorId() << "\",";
 	buffer << "\"volumeSerialNumber\":\"" << getVolumeSerialNumber() << "\""; 

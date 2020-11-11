@@ -1,4 +1,8 @@
 package com.assukar.desktop.windows {
+
+import com.assukar.desktop.windows.hardwareinfo.HardwareInfo;
+import com.assukar.desktop.windows.hardwareinfo.IHardwareInfo;
+
 import flash.events.EventDispatcher;
 import flash.events.IEventDispatcher;
 import flash.events.StatusEvent;
@@ -27,8 +31,9 @@ public class WindowsExtensionWrapper extends EventDispatcher {
     // The extension ID needs to be a unique string:
     private static const EXTENSION_ID:String = "com.assukar.desktop.windows.WindowsExtension";
 
-    public function getHardwareInfo():String {
-        return m_extContext.call("as_getHardwareInfo") as String;
+    public function getHardwareInfo():IHardwareInfo {
+        var rawData:String = m_extContext.call("as_getHardwareInfo") as String;
+        return new HardwareInfo(rawData);
     }
 
 //    public function passString(_message:String):String {
