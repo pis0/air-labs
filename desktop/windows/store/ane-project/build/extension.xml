@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<extension xmlns="http://ns.adobe.com/air/extension/32.0">
+
+    <id>com.assukar.desktop.windows.Store</id>
+
+    <versionNumber>1.0.0</versionNumber>
+
+    <platforms>
+
+        <platform name="Windows-x86">
+            <applicationDeployment>
+                <nativeLibrary>universal-dll-project.dll</nativeLibrary>
+                <initializer>ExtensionInitializer</initializer>
+                <finalizer>ExtensionFinalizer</finalizer>
+            </applicationDeployment>
+        </platform>
+
+    </platforms>
+</extension>
