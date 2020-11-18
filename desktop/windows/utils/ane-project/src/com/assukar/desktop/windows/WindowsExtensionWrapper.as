@@ -36,9 +36,10 @@ public class WindowsExtensionWrapper extends EventDispatcher {
         return new HardwareInfo(rawData);
     }
 
-    public function createStoreContext():void {
-        m_extContext.call("as_createStoreContext");
+    public function listProducts():String {
+        return m_extContext.call("as_listProducts") as String;
     }
+
 
 //    public function passString(_message:String):String {
 //        // Calls the ASPassAString function (exposed as "as_passAString" to ActionScript)

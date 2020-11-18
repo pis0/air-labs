@@ -1,4 +1,8 @@
-/desktop/windows/dll-project/.vs
-/desktop/windows/dll-project/Debug
-/desktop/windows/dll-project/Release
+/desktop/windows/utils/dll-project/.vs/*
+/desktop/windows/utils/dll-project/Debug/*
+/desktop/windows/utils/dll-project/Release/*
+
+/desktop/windows/store/universal-dll-project/.vs/*
+/desktop/windows/store/universal-dll-project/Debug/*
+/desktop/windows/store/universal-dll-project/Release/*
 

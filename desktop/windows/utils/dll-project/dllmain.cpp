@@ -6,6 +6,18 @@
 #include <iostream>
 #include <algorithm>
 
+/*TODO to review*/
+#include <windows.h>
+#include <Windows.Services.Store.h>
+#include <wrl.h>
+#include <wrl/wrappers/corewrappers.h>
+using namespace ABI::Windows::Foundation;
+using namespace ABI::Windows::Foundation::Collections;
+using namespace ABI::Windows::Services::Store;
+using namespace Microsoft::WRL;
+using namespace Microsoft::WRL::Wrappers;
+
+#define CheckHr(hr) do { if (FAILED(hr)) __debugbreak(); } while (false)
 
 
 std::string filter(std::string s)
@@ -133,31 +145,125 @@ std::string getProcessorId()
 }
 
 
+	FREObject ASGetHardwareInfo(FREContext ctx, void* funcData, uint32_t argc, FREObject argv[])
+	{
+		FREObject retObj = NULL;
+
+		std::stringstream  buffer;
+		buffer << "{";
+		buffer << "\"uuid\":\"" << getUUID() << "\",";
+		buffer << "\"hardwareProfileGuid\":\"" << getHardwareProfileGuid() << "\",";
+		buffer << "\"diskDrivePNPDeviceId\":\"" << getDiskDrivePNPDeviceId() << "\",";
+		buffer << "\"machineGuid\":\"" << getMachineGuid() << "\",";
+		buffer << "\"processorId\":\"" << getProcessorId() << "\",";
+		buffer << "\"volumeSerialNumber\":\"" << getVolumeSerialNumber() << "\"";
+		buffer << "}";
+
+		std::string bufferString = buffer.str();
+
+		const uint8_t* result = reinterpret_cast<const uint8_t*>(bufferString.c_str());
+		FRENewObjectFromUTF8(bufferString.size(), result, &retObj);
+
+		return retObj;
+	}
+
+	void OnPurchaseOperationDone(FREContext ctx, IAsyncOperation<StoreProductResult*>* operation, AsyncStatus status)
+	{
+		if (status != AsyncStatus::Completed)
+		{		
+			ComPtr<IAsyncInfo> asyncInfo;
+			auto hr = operation->QueryInterface(__uuidof(asyncInfo), &asyncInfo);
+			CheckHr(hr);
+
+			HRESULT errorCode;
+			hr = asyncInfo->get_ErrorCode(&errorCode);
+			CheckHr(hr);
+
+			std::stringstream buffer;
+			buffer << "Failed. Error 0x" << std::hex << errorCode << std::endl;
+			std::string bufferString = buffer.str();
+			const uint8_t* result = reinterpret_cast<const uint8_t*>(bufferString.c_str());
+
+			FREDispatchStatusEventAsync(ctx, (const uint8_t*)"LIST_PRODUCTS_COMPLETE", result);
+
+			return;
+		}
+
+		ComPtr<IStoreProductResult> productResult;
+		auto hr = operation->GetResults(&productResult);
+		CheckHr(hr);
+
+		ComPtr<IStoreProduct> product;
+		hr = productResult->get_Product(&product);
+		CheckHr(hr);
+
+		
+		//HSTRING title; 
+		//hr = product->get_Title(&title);
+		//CheckHr(hr);
+
+		//HString hstr;
+		//hstr.Set(title);
+		//std::wstring ws = hstr.GetRawBuffer(nullptr);
 
 
+		std::stringstream buffer;
+		buffer << "Success. product: "; // << std::hex << product << std::endl;
+
+		std::string bufferString = buffer.str();
+		const uint8_t* result = reinterpret_cast<const uint8_t*>(bufferString.c_str());
 
 
-FREObject ASGetHardwareInfo(FREContext ctx, void* funcData, uint32_t argc, FREObject argv[])
-{
-	FREObject retObj = NULL;
+		FREDispatchStatusEventAsync(ctx, (const uint8_t*)"LIST_PRODUCTS_COMPLETE", result);
 
-	std::stringstream  buffer; 
-	buffer << "{";
-	buffer << "\"uuid\":\"" << getUUID() << "\",";
-	buffer << "\"hardwareProfileGuid\":\"" << getHardwareProfileGuid() << "\",";
-	buffer << "\"diskDrivePNPDeviceId\":\"" << getDiskDrivePNPDeviceId() << "\",";
-	buffer << "\"machineGuid\":\"" << getMachineGuid() << "\",";	
-	buffer << "\"processorId\":\"" << getProcessorId() << "\",";
-	buffer << "\"volumeSerialNumber\":\"" << getVolumeSerialNumber() << "\""; 
-	buffer << "}";
+	}
 
-	std::string bufferString = buffer.str();
 
-	const uint8_t* result = reinterpret_cast<const uint8_t*>(bufferString.c_str());
-	FRENewObjectFromUTF8(bufferString.size(), result, &retObj); 
+	FREObject ASListProducts(FREContext ctx, void* funcData, uint32_t argc, FREObject argv[])
+	{
+		ComPtr<IStoreContextStatics> storeContextStatics;
+		auto hr = RoGetActivationFactory(HStringReference(L"Windows.Services.Store.StoreContext").Get(), __uuidof(storeContextStatics), &storeContextStatics);
+		CheckHr(hr);
 
-	return retObj;
-}
+		ComPtr<IStoreContext> storeContext;
+		hr = storeContextStatics->GetDefault(&storeContext);
+		CheckHr(hr);
+
+
+		//ComPtr<IInitializeWithWindow> initWindow; 
+		//hr = storeContext->QueryInterface(IID_PPV_ARGS(&initWindow));
+		//hr = initWindow->Initialize(hwdlg);
+
+		//ComPtr<IAsyncOperation<StoreProductQueryResult*>> storeProductsOperation;		
+		//__FIIterable_1_HSTRING_t* productKinds({ HStringReference(L"Windows.Services.Store.StoreContext").Get()} );
+		//__FIIterable_1_HSTRING_t* storeIds;
+		//hr = storeContext->GetStoreProductsAsync(productKinds, storeIds, &storeProductsOperation);
+		//CheckHr(hr);
+
+		/*
+		auto onCompletedCallback = Callback<Implements<RuntimeClassFlags<ClassicCom>, IAsyncOperationCompletedHandler<StoreProductQueryResult*>, FtmBase>>(
+			[ctx](IAsyncOperation<StoreProductQueryResult*>* operation, AsyncStatus status)
+			{
+				//OnPurchaseOperationDone(ctx, operation, status);				
+				FREDispatchStatusEventAsync(ctx, (const uint8_t*)"LIST_PRODUCTS_COMPLETE", (const uint8_t*)"SUCCESS");
+				return S_OK;
+			});
+		hr = storeProductsOperation->put_Completed(onCompletedCallback.Get());
+		CheckHr(hr);
+		*/
+		 
+		FREObject retObj = NULL;
+		std::stringstream  buffer;
+		buffer << "{}" << std::endl;
+		std::string bufferString = buffer.str();
+		const uint8_t* result = reinterpret_cast<const uint8_t*>(bufferString.c_str());
+		FRENewObjectFromUTF8(bufferString.size(), result, &retObj);		
+
+
+		FREDispatchStatusEventAsync(ctx, (const uint8_t*)"LIST_PRODUCTS_COMPLETE", (const uint8_t*)"SUCCESS");
+
+		return retObj;
+	}
 
 
 /*
@@ -231,6 +337,7 @@ void contextInitializer(
 	static FRENamedFunction extensionFunctions[] =
 	{
 		{ (const uint8_t*)"as_getHardwareInfo",NULL, &ASGetHardwareInfo },
+		{ (const uint8_t*)"as_listProducts",NULL, &ASListProducts },
 	};
 
 	// Tell AIR how many functions there are in the array:
