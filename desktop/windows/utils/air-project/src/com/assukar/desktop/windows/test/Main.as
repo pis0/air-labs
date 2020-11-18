@@ -30,8 +30,13 @@ public class Main extends Sprite {
         addChild(textField)
 
 
+        try {
+            m_ext.listProducts();
+        }
+        catch (err:Error) {
+            trace(err.message);
+        }
 
-        m_ext.createStoreContext();
 
     }
 }

@@ -233,12 +233,19 @@ std::string getProcessorId()
 		//ComPtr<IInitializeWithWindow> initWindow; 
 		//hr = storeContext->QueryInterface(IID_PPV_ARGS(&initWindow));
 		//hr = initWindow->Initialize(hwdlg);
+		
 
-		//ComPtr<IAsyncOperation<StoreProductQueryResult*>> storeProductsOperation;		
-		//__FIIterable_1_HSTRING_t* productKinds({ HStringReference(L"Windows.Services.Store.StoreContext").Get()} );
-		//__FIIterable_1_HSTRING_t* storeIds;
-		//hr = storeContext->GetStoreProductsAsync(productKinds, storeIds, &storeProductsOperation);
+		//Vector<HSTRING>* productKinds;		
+		
+		//wrapped_vector<HSTRING>* productKinds = {};
+		//productKinds->Append(HStringReference(L"consumable").Get());
+		//wrapped_vector<HSTRING>* storeIds = {};
+		//storeIds->Append(HStringReference(L"9P6HBF77303B").Get());
+
+		//ComPtr<IAsyncOperation<StoreProductQueryResult*>> storeProductsOperation;
+		//hr = storeContext->GetStoreProductsAsync((__FIIterable_1_HSTRING_t*)productKinds, (__FIIterable_1_HSTRING_t*)storeIds, &storeProductsOperation);
 		//CheckHr(hr);
+		
 
 		/*
 		auto onCompletedCallback = Callback<Implements<RuntimeClassFlags<ClassicCom>, IAsyncOperationCompletedHandler<StoreProductQueryResult*>, FtmBase>>(
