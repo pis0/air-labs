@@ -6,6 +6,14 @@
 #include <iostream>
 #include <algorithm>
 
+//#include <winrt/base.h>
+//#include <winrt/Windows.Services.Store.h>
+//#include <winrt/Windows.Foundation.h>
+//using namespace winrt;
+//using namespace winrt::impl;
+//susing namespace winrt::Windows::Services::Store;
+
+
 /*TODO to review*/
 #include <windows.h>
 #include <Windows.Services.Store.h>
@@ -17,10 +25,11 @@ using namespace ABI::Windows::Services::Store;
 using namespace Microsoft::WRL;
 using namespace Microsoft::WRL::Wrappers;
 
+
 #define CheckHr(hr) do { if (FAILED(hr)) __debugbreak(); } while (false)
 
 
-std::string filter(std::string s)
+std::string resultFilter(std::string s)
 {
 	/*
 	std::regex newlines_r("\r+");
@@ -58,7 +67,7 @@ std::string getUUID()
 	while (fgets(buffer, sizeof buffer, pipe) != NULL) stros << buffer;
 	_pclose(pipe);
 
-	return filter(stros.str());
+	return resultFilter(stros.str());
 }
 
 std::string getHardwareProfileGuid()
@@ -71,7 +80,7 @@ std::string getHardwareProfileGuid()
 		sprintf_s(uuid, uuidLength, "%ws", hwProfileInfo.szHwProfileGuid);
 		std::string result(uuid); 
 
-		return filter(result.substr(1, uuidLength - 3)); 
+		return resultFilter(result.substr(1, uuidLength - 3));
 	}
 	return "N/A";	
 }
@@ -86,7 +95,7 @@ std::string getDiskDrivePNPDeviceId()
 	while (fgets(buffer, sizeof buffer, pipe) != NULL) stros << buffer;
 	_pclose(pipe);
 
-	return filter(stros.str().substr(20, stros.str().length() - 20));
+	return resultFilter(stros.str().substr(20, stros.str().length() - 20));
 }
 
 std::string getMachineGuid()
@@ -103,7 +112,7 @@ std::string getMachineGuid()
 	}
 	::RegCloseKey(key);
 
-	return filter(ret);
+	return resultFilter(ret);
 }
 
 std::string getVolumeSerialNumber()
@@ -128,7 +137,7 @@ std::string getVolumeSerialNumber()
 	sprintf_s(volumeSerial, volumeSerialLength, "%08lX", volumeSerialNumber);
 	std::string result(volumeSerial);
 
-	return filter(result);
+	return resultFilter(result);
 }
 
 std::string getProcessorId()
@@ -141,7 +150,7 @@ std::string getProcessorId()
 	while (fgets(buffer, sizeof buffer, pipe) != NULL) stros << buffer;
 	_pclose(pipe);
 
-	return filter(stros.str());
+	return resultFilter(stros.str());
 }
 
 
@@ -167,6 +176,7 @@ std::string getProcessorId()
 		return retObj;
 	}
 
+	/*
 	void OnPurchaseOperationDone(FREContext ctx, IAsyncOperation<StoreProductResult*>* operation, AsyncStatus status)
 	{
 		if (status != AsyncStatus::Completed)
@@ -217,6 +227,7 @@ std::string getProcessorId()
 		FREDispatchStatusEventAsync(ctx, (const uint8_t*)"LIST_PRODUCTS_COMPLETE", result);
 
 	}
+	*/
 
 
 	FREObject ASListProducts(FREContext ctx, void* funcData, uint32_t argc, FREObject argv[])
@@ -229,6 +240,59 @@ std::string getProcessorId()
 		hr = storeContextStatics->GetDefault(&storeContext);
 		CheckHr(hr);
 
+
+		ComPtr<IAsyncOperation<StoreAppLicense*>> getLicenseOperation;
+		hr = storeContext->GetAppLicenseAsync(&getLicenseOperation);
+		CheckHr(hr);
+
+		hr = getLicenseOperation->put_Completed(Callback<Implements<RuntimeClassFlags<ClassicCom>, IAsyncOperationCompletedHandler<StoreAppLicense*>, FtmBase>>(
+			[ctx](IAsyncOperation<StoreAppLicense*>* operation, AsyncStatus status)
+		{
+			if (status != AsyncStatus::Completed)
+			{
+				// It failed for some reason. Find out why.
+				ComPtr<IAsyncInfo> asyncInfo;
+				auto hr = operation->QueryInterface(__uuidof(asyncInfo), &asyncInfo);
+				CheckHr(hr);
+
+				HRESULT errorCode;
+				hr = asyncInfo->get_ErrorCode(&errorCode);
+				CheckHr(hr);
+
+				FREDispatchStatusEventAsync(ctx, (const uint8_t*)"LIST_PRODUCTS_COMPLETE", (const uint8_t*)"ERROR");
+				return S_OK;
+			}
+
+			ComPtr<IStoreAppLicense> appLicense;
+			auto hr = operation->GetResults(&appLicense);
+			CheckHr(hr);
+
+			boolean isActive, isTrial = false;
+
+			hr = appLicense->get_IsActive(&isActive);
+			CheckHr(hr);
+
+			if (isActive)
+			{
+				hr = appLicense->get_IsTrial(&isTrial);
+				CheckHr(hr);				
+			}
+
+			FREDispatchStatusEventAsync(ctx, (const uint8_t*)"LIST_PRODUCTS_COMPLETE", (const uint8_t*)"TRIAL");
+			
+			return S_OK;
+		}).Get());
+		CheckHr(hr);
+		
+		/*
+		com_ptr<IStoreContextStatics> storeContextStatics;
+		auto hr = RoGetActivationFactory(HStringReference(L"Windows.Services.Store.StoreContext").Get(), __uuidof(storeContextStatics), &storeContextStatics);
+		CheckHr(hr);
+
+		ComPtr<IStoreContext> storeContext;
+		hr = storeContextStatics->GetDefault(&storeContext);
+		CheckHr(hr);
+		*/
 
 		//ComPtr<IInitializeWithWindow> initWindow; 
 		//hr = storeContext->QueryInterface(IID_PPV_ARGS(&initWindow));
@@ -267,7 +331,7 @@ std::string getProcessorId()
 		FRENewObjectFromUTF8(bufferString.size(), result, &retObj);		
 
 
-		FREDispatchStatusEventAsync(ctx, (const uint8_t*)"LIST_PRODUCTS_COMPLETE", (const uint8_t*)"SUCCESS");
+		//FREDispatchStatusEventAsync(ctx, (const uint8_t*)"LIST_PRODUCTS_COMPLETE", (const uint8_t*)"SUCCESS");
 
 		return retObj;
 	}
