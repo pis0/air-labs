@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<extension xmlns="http://ns.adobe.com/air/extension/32.0">
+    <id>com.assukar.windows.store.WindowsStore</id>
+    <name>Windows Store Extension</name>
+    <copyright></copyright>
+    <versionNumber>1.0.0</versionNumber>
+	<platforms>
+        <platform name="Windows-x86">
+            <applicationDeployment>
+                <nativeLibrary>WindowsStore.dll</nativeLibrary>
+                <initializer>PSWSExtensionInitializer</initializer>
+                <finalizer>PSWSExtensionFinalizer</finalizer>
+            </applicationDeployment>
+        </platform>
+        <platform name="Windows-x86-64">
+            <applicationDeployment>
+                <nativeLibrary>WindowsStore.dll</nativeLibrary>
+                <initializer>PSWSExtensionInitializer</initializer>
+                <finalizer>PSWSExtensionFinalizer</finalizer>
+            </applicationDeployment>
+        </platform>
+	</platforms>
+</extension>
