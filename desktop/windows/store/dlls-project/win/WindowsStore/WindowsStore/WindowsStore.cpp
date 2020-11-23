@@ -7,7 +7,8 @@ extern "C" {
 
 		static FRENamedFunction extensionFunctions[] = {
 			 MAP_FUNCTION(init),
-			 MAP_FUNCTION(getProducts)
+			 MAP_FUNCTION(getProducts),
+			 MAP_FUNCTION(purchase),
 		};
 
 		SET_FUNCTIONS

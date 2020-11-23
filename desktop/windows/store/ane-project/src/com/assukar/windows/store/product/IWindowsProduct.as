@@ -8,6 +8,6 @@ public interface IWindowsProduct {
 
     function get storeId():String;
 
-    function get inCollection():String;
+    function get inCollection():Boolean;
 }
 }

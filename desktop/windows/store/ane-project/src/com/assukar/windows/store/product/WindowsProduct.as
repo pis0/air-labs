@@ -24,8 +24,8 @@ public class WindowsProduct implements IWindowsProduct {
         return StaticUtils.getProp(dataObj, "StoreId") as String;
     }
 
-    public function get inCollection():String {
-        return StaticUtils.getProp(dataObj, "InCollection") as String;
+    public function get inCollection():Boolean {
+        return StaticUtils.getProp(dataObj, "InCollection") as Boolean;
     }
 
     public function toString():String {
