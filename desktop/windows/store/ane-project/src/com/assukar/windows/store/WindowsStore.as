@@ -31,6 +31,12 @@ public class WindowsStore extends EventDispatcher {
         if (theRet is ANEError) throw theRet as ANEError;
     }
 
+    public function consume(productStoreId:String):void {
+        WindowsStoreContext.validate();
+        var theRet:* = WindowsStoreContext.instance.call("consume", productStoreId);
+        if (theRet is ANEError) throw theRet as ANEError;
+    }
+
     public static function dispose():void {
         if (WindowsStoreContext.instance) {
             WindowsStoreContext.dispose();

@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Web.Script.Serialization;
 using System.Threading.Tasks;
 using Windows.Services.Store;
+using Windows.System;
 using TuaRua.FreSharp;
 using TuaRua.FreSharp.Exceptions;
 
@@ -26,7 +27,8 @@ namespace WindowsStoreLib {
     public class Actions
     {
         public static string GET_PRODUCTS = "GET_PRODUCTS";
-        public static string PURCHASE = "PURCHASE"; 
+        public static string CONSUME = "CONSUME";
+        public static string PURCHASE = "PURCHASE";        
     }
 
     public class EventData
@@ -62,17 +64,35 @@ namespace WindowsStoreLib {
                 {"init", InitController},
                 {"getProducts", GetProducts},
                 {"purchase", Purchase},
+                {"consume", Consume},
             }; 
 
             return FunctionsDict.Select(kvp => kvp.Key).ToArray();
         }
 
         
-        private void UpdateStoreContext()
+        private void UpdateStoreContext(Action callback)
         {
-            if(storeContext == null) storeContext = StoreContext.GetDefault();
-            var initWindow = (IInitializeWithWindow)(object)storeContext;
-            initWindow.Initialize(Process.GetCurrentProcess().MainWindowHandle);
+            Task.Run(() =>
+            {
+                var users = User.FindAllAsync(UserType.LocalUser, UserAuthenticationStatus.LocallyAuthenticated);
+                users.Completed = (a, b) =>
+                {
+                    var results = a.GetResults();
+                    var user = results.FirstOrDefault();
+
+                    if (storeContext == null) storeContext = StoreContext.GetForUser(user);
+                    var initWindow = (IInitializeWithWindow)(object)storeContext;
+                    initWindow.Initialize(Process.GetCurrentProcess().MainWindowHandle);
+
+                    callback.Invoke();
+
+                };
+            });
+
+            //if (storeContext == null) storeContext = StoreContext.GetDefault();
+            //var initWindow = (IInitializeWithWindow)(object)storeContext;
+            //initWindow.Initialize(Process.GetCurrentProcess().MainWindowHandle);
         }
 
         private FREObject GetProducts(FREContext ctx, uint argc, FREObject[] argv) 
@@ -103,61 +123,59 @@ namespace WindowsStoreLib {
                 paramsData.TryGetValue("productKinds", out productKinds);
                 paramsData.TryGetValue("storeIds", out storeIds);
 
-                Trace($"getting products...");
+                Trace($"getting products...");               
 
-                Task.Run(() =>
-                {
-
-                    UpdateStoreContext();
-                    var addOns = storeContext.GetStoreProductsAsync(productKinds, storeIds);
-                    addOns.Completed = (a, b) =>
-                    {
-
-                        Trace($"GetStoreProductsAsync completed");
-
-                        void GetProductsDispatch(bool success, string message)
-                        {
-                            Trace(message);
-                            DispatchEvent(EVENT_TAG, new JavaScriptSerializer().Serialize(new EventData()
+                    UpdateStoreContext(() => {
+                        var addOns = storeContext.GetStoreProductsAsync(productKinds, storeIds);
+                        addOns.Completed = (a, b) =>
                             {
-                                Action = Actions.GET_PRODUCTS,
-                                Success = success,
-                                Data = message
-                            }));
-                        }
 
-                        var results = a.GetResults();
-                        if (results.ExtendedError != null)
-                        {
-                            GetProductsDispatch(false, $"GetStoreProductsAsync error: {results.ExtendedError.Message}");
-                        }
-                        else if (results.Products.Count == 0)
-                        {
-                            GetProductsDispatch(false, "GetStoreProductsAsync error: No configured products found for this Store Product.");
-                        }
-                        else
-                        {
-                            var successData = new List<Product>();
-                            foreach (StoreProduct product in results.Products.Values)
-                            {
-                                var obj = new Product()
+                                Trace($"GetStoreProductsAsync completed");
+
+                                void GetProductsDispatch(bool success, string message)
                                 {
-                                    Title = product.Title,
-                                    Price = product.Price.FormattedBasePrice,
-                                    InCollection = product.IsInUserCollection,
-                                    ProductKind = product.ProductKind,
-                                    StoreId = product.StoreId,
-                                };
+                                    Trace(message);
+                                    DispatchEvent(EVENT_TAG, new JavaScriptSerializer().Serialize(new EventData()
+                                    {
+                                        Action = Actions.GET_PRODUCTS,
+                                        Success = success,
+                                        Data = message
+                                    }));
+                                }
 
-                                var message = obj.ToString();
-                                Trace(message);
-                                successData.Add(obj);
-                            }
-                            GetProductsDispatch(true, new JavaScriptSerializer().Serialize(successData));
-                        }
+                                var results = a.GetResults();
+                                if (results.ExtendedError != null)
+                                {
+                                    GetProductsDispatch(false, $"GetStoreProductsAsync error: {results.ExtendedError.Message}");
+                                }
+                                else if (results.Products.Count == 0)
+                                {
+                                    GetProductsDispatch(false, "GetStoreProductsAsync error: No configured products found for this Store Product.");
+                                }
+                                else
+                                {
+                                    var successData = new List<Product>();
+                                    foreach (StoreProduct product in results.Products.Values)
+                                    {
+                                        var obj = new Product()
+                                        {
+                                            Title = product.Title,
+                                            Price = product.Price.FormattedBasePrice,
+                                            InCollection = product.IsInUserCollection,
+                                            ProductKind = product.ProductKind,
+                                            StoreId = product.StoreId,
+                                        };
 
-                    };
-                });
+                                        var message = obj.ToString();
+                                        Trace(message);
+                                        successData.Add(obj);
+                                    }
+                                    GetProductsDispatch(true, new JavaScriptSerializer().Serialize(successData));
+                                }
+
+                            };
+                    
+                    });
 
                 return new FREObject();
             }
@@ -176,12 +194,9 @@ namespace WindowsStoreLib {
             {
 
                 var productStoreId = argv[0].AsString();
-                                
-                Task.Run(() =>
-                {
-                    UpdateStoreContext();
 
-                    var purchaseRequest = storeContext.RequestPurchaseAsync(productStoreId);       
+                UpdateStoreContext(() => {                   
+                       var purchaseRequest = storeContext.RequestPurchaseAsync(productStoreId);       
                        purchaseRequest.Completed = (a, b) =>
                        {
                            Trace($"RequestPurchaseAsync completed - product:{productStoreId}");
@@ -202,29 +217,26 @@ namespace WindowsStoreLib {
                            if (purchaseResults.ExtendedError != null)
                            {
                                PurchaseDispatch(false, $"RequestPurchaseAsync error: {purchaseResults.ExtendedError.Message}");
+                               return;
                            }                   
 
                            switch (purchaseResults.Status)
                            {
-                               case StorePurchaseStatus.AlreadyPurchased:              
-                                   PurchaseDispatch(false, $"You already bought this AddOn");
-                                   break;                       
-
-                               case StorePurchaseStatus.NotPurchased:
-                                   PurchaseDispatch(false, $"Product was not purchased, it may have been canceled.");
-                                   break;
-
-                               case StorePurchaseStatus.NetworkError:
-                                   PurchaseDispatch(false, $"Product was not purchased due to a network error.");
-                                   break;
-
-                               case StorePurchaseStatus.ServerError:
-                                   PurchaseDispatch(false, $"Product was not purchased due to a server error.");
-                                   break;
                                case StorePurchaseStatus.Succeeded:
                                    PurchaseDispatch(true, $"You bought the product {productStoreId}.");
                                    break;
-
+                               case StorePurchaseStatus.AlreadyPurchased:              
+                                   PurchaseDispatch(false, $"You already bought this AddOn");
+                                   break;    
+                               case StorePurchaseStatus.NotPurchased:
+                                   PurchaseDispatch(false, $"Product was not purchased, it may have been canceled.");
+                                   break;
+                               case StorePurchaseStatus.NetworkError:
+                                   PurchaseDispatch(false, $"Product was not purchased due to a network error.");
+                                   break;
+                               case StorePurchaseStatus.ServerError:
+                                   PurchaseDispatch(false, $"Product was not purchased due to a server error.");
+                                   break;   
                                default:
                                    PurchaseDispatch(false, $"Product was not purchased due to an unknown error.");
                                    break;
@@ -241,6 +253,73 @@ namespace WindowsStoreLib {
                 return new FreException(e).RawValue;
             }
 
+        }
+
+
+        private FREObject Consume(FREContext ctx, uint argc, FREObject[] argv)
+        {
+
+            if (argv[0] == FREObject.Zero) return new FreArgException().RawValue;
+
+            try
+            {
+                var productStoreId = argv[0].AsString();
+                var trackingId = Guid.NewGuid();
+
+                Trace($"consume product...");
+
+                UpdateStoreContext(() => {
+
+                        var consume = storeContext.ReportConsumableFulfillmentAsync(productStoreId, Convert.ToUInt32(1), trackingId);
+                        consume.Completed = (a, b) =>
+                        {
+                            Trace($"Consume completed");
+
+                            void ConsumeDispatch(bool success, string message)
+                            {
+                                Trace(message);
+                                DispatchEvent(EVENT_TAG, new JavaScriptSerializer().Serialize(new EventData()
+                                {
+                                    Action = Actions.CONSUME,
+                                    Success = success,
+                                    Data = message
+                                }));
+                            }
+
+                            var results = a.GetResults();
+                            if (results.ExtendedError != null)
+                            {
+                                ConsumeDispatch(false, $"ReportConsumableFulfillmentAsync error: {results.ExtendedError.Message}");
+                                return;
+                            }
+
+                            switch (results.Status)
+                            {
+                                case StoreConsumableStatus.Succeeded:
+                                    ConsumeDispatch(true, $"Successful fulfillment! Balance Remaining: {results.BalanceRemaining}");
+                                    break;
+                                case StoreConsumableStatus.InsufficentQuantity:
+                                    ConsumeDispatch(false, $"Insufficient Quantity! Balance Remaining: {results.BalanceRemaining}");
+                                    break;    
+                                case StoreConsumableStatus.NetworkError:
+                                    ConsumeDispatch(false, $"Network error fulfilling consumable.");
+                                    break;
+                                case StoreConsumableStatus.ServerError:
+                                    ConsumeDispatch(false, $"Server error fulfilling consumable.");
+                                    break;
+                                default:
+                                    ConsumeDispatch(false, $"Unknown error fulfilling consumable.");
+                                    break;                           
+                            }
+                        };
+                });
+
+                return new FREObject();
+            }
+            catch (Exception e)
+            {
+                return new FreException(e).RawValue;
+            }
         }
 
         private FREObject InitController(FREContext ctx, uint argc, FREObject[] argv) 

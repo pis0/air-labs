@@ -25,21 +25,27 @@ public class Main extends Sprite {
         windowsStore.addEventListener("WINDOWS_STORE_EVENT", onWindowsStoreEvent);
 
         // get productss
-//        windowsStore.getProducts(JSON.stringify({
-//            productKinds: [
-//                "UnmanagedConsumable"
-//            ],
-//            storeIds: [
-//                "9NRKGGCVC12Q",
-//                "9MT44Q75C27T"
-//            ]
-//        }));
+        windowsStore.getProducts(JSON.stringify({
+            productKinds: [
+                "UnmanagedConsumable"
+            ],
+            storeIds: [
+                "9NRKGGCVC12Q",
+                "9MT44Q75C27T"
+            ]
+        }));
 
-        // purchase
-        windowsStore.purchase(
-    //"9NRKGGCVC12Q"
-    "9MT44Q75C27T"
-        );
+        // purchases
+//        windowsStore.purchase(
+////    "9NRKGGCVC12Q"
+//    "9MT44Q75C27T"
+//        );
+
+//        // consume
+//        windowsStore.consume(
+////                "9NRKGGCVC12Q"
+//                "9MT44Q75C27T"
+//        );
 
     }
 
@@ -47,7 +53,7 @@ public class Main extends Sprite {
         trace("onWindowsStoreEvent - raw data: " + e.data);
 
         var windowsEventData:WindowsEventData = new WindowsEventData(e.data);
-        if(!windowsEventData.success) {
+        if (!windowsEventData.success) {
             trace("Error: " + windowsEventData.data);
             return;
         }
@@ -60,11 +66,14 @@ public class Main extends Sprite {
                     getProductsData.push(new WindowsProduct(JSON.stringify(obj)));
                 }
                 trace("getProductsData:", getProductsData);
-
                 break;
+
             case Actions.PURCHASE:
-                var purchaseRawData:String = JSON.parse(windowsEventData.data) as String;
-                trace("purchaseRawData:", purchaseRawData);
+                trace("purchaseRawData:", windowsEventData.data);
+                break;
+
+            case Actions.CONSUME:
+                trace("consumeRawData:", windowsEventData.data);
                 break;
         }
 
