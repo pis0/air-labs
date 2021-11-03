@@ -222,14 +222,14 @@ package com.hurlant.crypto.tls {
 				var length:uint = stream.readShort();
 
 				// support compression and encryption overhead.
-//				if (length>16384+2048) {
-//					throw new TLSError("Excessive TLS Record length: "+length, TLSError.record_overflow);
-//				}
+				if (length>16384+2048) {
+					throw new TLSError("Excessive TLS Record length: "+length, TLSError.record_overflow);
+				}
 
 				// Can pretty much assume that if I'm here, I've got a default config, so let's use it.
-//				if (ver != _securityParameters.version ) {
-//					throw new TLSError("Unsupported TLS version: "+ver.toString(16), TLSError.protocol_version);
-//				}
+				if (ver != _securityParameters.version ) {
+					throw new TLSError("Unsupported TLS version: "+ver.toString(16), TLSError.protocol_version);
+				}
 
 				p = new ByteArray;
 				var actualLength:uint = Math.min(stream.bytesAvailable, length);
