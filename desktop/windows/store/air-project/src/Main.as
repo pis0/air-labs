@@ -20,6 +20,7 @@ public class Main extends Sprite {
     }
 
     public function Main() {
+
         NativeApplication.nativeApplication.addEventListener(Event.EXITING, onExiting);
         windowsStore = WindowsStore.storeInstance;
         windowsStore.addEventListener("WINDOWS_STORE_EVENT", onWindowsStoreEvent);
@@ -41,7 +42,7 @@ public class Main extends Sprite {
 //    "9MT44Q75C27T"
 //        );
 
-//        // consume
+        // consume
 //        windowsStore.consume(
 ////                "9NRKGGCVC12Q"
 //                "9MT44Q75C27T"

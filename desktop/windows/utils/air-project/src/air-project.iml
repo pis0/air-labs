@@ -2,7 +2,7 @@
 <module type="Flex" version="4">
   <component name="FlexBuildConfigurationManager" active="app">
     <configurations>
-      <configuration name="app" target-platform="Desktop" pure-as="true" main-class="com.assukar.desktop.windows.test.Main" output-file="Main.swf" output-folder="$MODULE_DIR$/../../../../../../_ideaProjects/_labs/air-project/out">
+      <configuration name="app" target-platform="Desktop" pure-as="true" main-class="com.assukar.desktop.windows.test.Main" output-file="Main.swf" output-folder="$MODULE_DIR$/../../../../../../../_ideaProjects/_labs/utils/air-project/out">
         <dependencies>
           <entries>
             <entry library-id="42650b6d-78e5-4b37-bcb8-b3576d2c2939">

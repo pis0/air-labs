@@ -7,6 +7,9 @@ using System.Web.Script.Serialization;
 using System.Threading.Tasks;
 using Windows.Services.Store;
 using Windows.System;
+using Windows.Data.Json;
+using Windows.Web.Http;
+using Windows.Web.Http.Headers;
 using TuaRua.FreSharp;
 using TuaRua.FreSharp.Exceptions;
 
@@ -26,9 +29,10 @@ namespace WindowsStoreLib {
 
     public class Actions
     {
-        public static string GET_PRODUCTS = "GET_PRODUCTS";
+        public static string GET_PRODUCTS = "GET_PRODUCTS";        
+        public static string PURCHASE = "PURCHASE";
+        public static string GET_COLLECTION = "GET_COLLECTION";
         public static string CONSUME = "CONSUME";
-        public static string PURCHASE = "PURCHASE";        
     }
 
     public class EventData
@@ -64,6 +68,7 @@ namespace WindowsStoreLib {
                 {"init", InitController},
                 {"getProducts", GetProducts},
                 {"purchase", Purchase},
+                {"getCollection", GetCollection},
                 {"consume", Consume},
             }; 
 
@@ -93,6 +98,44 @@ namespace WindowsStoreLib {
             //if (storeContext == null) storeContext = StoreContext.GetDefault();
             //var initWindow = (IInitializeWithWindow)(object)storeContext;
             //initWindow.Initialize(Process.GetCurrentProcess().MainWindowHandle);
+            //callback.Invoke();
+        }
+
+        private void GetTokenFromAzureOAuthAsync(string clientId, string clientSecret, string appIdUri, string tenantId, Action<string> callback)
+        {
+            Task.Run(() =>
+            {
+                var content = new HttpFormUrlEncodedContent(new Dictionary<string, string>
+                {
+                    { "grant_type", "client_credentials" },
+                    { "client_id", clientId },
+                    { "client_secret", clientSecret },
+                    { "resource", appIdUri },
+                });
+                    content.Headers.ContentType = new HttpMediaTypeHeaderValue("application/x-www-form-urlencoded");
+                    try
+                    {
+                        var client = new HttpClient();
+                        var clientPostAsync = client.PostAsync(new Uri($"https://login.microsoftonline.com/{tenantId}/oauth2/token"), content);
+                        clientPostAsync.Completed = (a, b) =>
+                        {
+                            var clientPostAsyncResult = a.GetResults();
+                            var responseStringAsync = clientPostAsyncResult.Content.ReadAsStringAsync();
+                            responseStringAsync.Completed = (c, d) =>
+                            {
+                                var responseStringAsyncResult = c.GetResults();
+                                JsonValue response = JsonValue.Parse(responseStringAsyncResult);
+
+                                callback.Invoke(response.GetObject().GetNamedString("access_token"));
+                            };
+                        };
+                    }
+                    catch (Exception ex)
+                    {
+                        Trace($"Failed to load Azure OAuth Token: {ex}");
+                        callback.Invoke(String.Empty);
+                    }
+            });            
         }
 
         private FREObject GetProducts(FREContext ctx, uint argc, FREObject[] argv) 
@@ -163,7 +206,7 @@ namespace WindowsStoreLib {
                                             Price = product.Price.FormattedBasePrice,
                                             InCollection = product.IsInUserCollection,
                                             ProductKind = product.ProductKind,
-                                            StoreId = product.StoreId,
+                                            StoreId = product.StoreId,                                            
                                         };
 
                                         var message = obj.ToString();
@@ -256,6 +299,43 @@ namespace WindowsStoreLib {
         }
 
 
+        
+        private FREObject GetCollection(FREContext ctx, uint argc, FREObject[] argv)
+        {
+
+            if (argv[0] == FREObject.Zero) return new FreArgException().RawValue;
+            if (argv[1] == FREObject.Zero) return new FreArgException().RawValue;
+            if (argv[2] == FREObject.Zero) return new FreArgException().RawValue;
+            if (argv[3] == FREObject.Zero) return new FreArgException().RawValue;
+
+            try
+            {
+                var tenantId = argv[0].AsString();
+                var clientId = argv[1].AsString();
+                var clientSecret = argv[2].AsString();
+                var appIdUri = argv[3].AsString();
+
+                Trace($"get token ...");
+                GetTokenFromAzureOAuthAsync(clientId, clientSecret, appIdUri, tenantId, (azureToken) =>
+                {
+                    Trace($"azureToken: {azureToken}");
+                    //UpdateStoreContext(() =>
+                    //{
+                    //});
+                });
+
+               
+
+                return new FREObject();
+            }
+            catch (Exception e)
+            {
+                return new FreException(e).RawValue;
+            }
+        }
+
+
+        // TODO to fix
         private FREObject Consume(FREContext ctx, uint argc, FREObject[] argv)
         {
 
@@ -263,55 +343,13 @@ namespace WindowsStoreLib {
 
             try
             {
-                var productStoreId = argv[0].AsString();
-                var trackingId = Guid.NewGuid();
+                var productStoreId = argv[0].AsString();   
 
                 Trace($"consume product...");
 
-                UpdateStoreContext(() => {
+                UpdateStoreContext(() =>
+                {
 
-                        var consume = storeContext.ReportConsumableFulfillmentAsync(productStoreId, Convert.ToUInt32(1), trackingId);
-                        consume.Completed = (a, b) =>
-                        {
-                            Trace($"Consume completed");
-
-                            void ConsumeDispatch(bool success, string message)
-                            {
-                                Trace(message);
-                                DispatchEvent(EVENT_TAG, new JavaScriptSerializer().Serialize(new EventData()
-                                {
-                                    Action = Actions.CONSUME,
-                                    Success = success,
-                                    Data = message
-                                }));
-                            }
-
-                            var results = a.GetResults();
-                            if (results.ExtendedError != null)
-                            {
-                                ConsumeDispatch(false, $"ReportConsumableFulfillmentAsync error: {results.ExtendedError.Message}");
-                                return;
-                            }
-
-                            switch (results.Status)
-                            {
-                                case StoreConsumableStatus.Succeeded:
-                                    ConsumeDispatch(true, $"Successful fulfillment! Balance Remaining: {results.BalanceRemaining}");
-                                    break;
-                                case StoreConsumableStatus.InsufficentQuantity:
-                                    ConsumeDispatch(false, $"Insufficient Quantity! Balance Remaining: {results.BalanceRemaining}");
-                                    break;    
-                                case StoreConsumableStatus.NetworkError:
-                                    ConsumeDispatch(false, $"Network error fulfilling consumable.");
-                                    break;
-                                case StoreConsumableStatus.ServerError:
-                                    ConsumeDispatch(false, $"Server error fulfilling consumable.");
-                                    break;
-                                default:
-                                    ConsumeDispatch(false, $"Unknown error fulfilling consumable.");
-                                    break;                           
-                            }
-                        };
                 });
 
                 return new FREObject();

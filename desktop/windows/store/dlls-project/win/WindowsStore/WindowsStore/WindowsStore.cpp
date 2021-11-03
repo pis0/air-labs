@@ -9,6 +9,7 @@ extern "C" {
 			 MAP_FUNCTION(init),
 			 MAP_FUNCTION(getProducts),
 			 MAP_FUNCTION(purchase),
+			 MAP_FUNCTION(getCollection),
 			 MAP_FUNCTION(consume),
 		};
 

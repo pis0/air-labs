@@ -386,12 +386,12 @@ FREObject ASPassAString(FREContext ctx, void* funcData, uint32_t argc, FREObject
 }
 */
 
-void contextFinalizer(FREContext ctx)
+void PSWUcontextFinalizer(FREContext ctx)
 {
 	return;
 }
 
-void contextInitializer(
+void PSWUcontextInitializer(
 	void* extData,
 	const uint8_t* ctxType,
 	FREContext ctx,
@@ -420,13 +420,13 @@ void contextInitializer(
 
 extern "C"
 {
-	__declspec(dllexport) void ExtensionInitializer(void** extData, FREContextInitializer* ctxInitializer, FREContextFinalizer* ctxFinalizer)
+	__declspec(dllexport) void PSWUExtensionInitializer(void** extData, FREContextInitializer* ctxInitializer, FREContextFinalizer* ctxFinalizer)
 	{
-		*ctxInitializer = &contextInitializer; // The name of function that will intialize the extension context
-		*ctxFinalizer = &contextFinalizer; // The name of function that will finalize the extension context
+		*ctxInitializer = &PSWUcontextInitializer; // The name of function that will intialize the extension context
+		*ctxFinalizer = &PSWUcontextFinalizer; // The name of function that will finalize the extension context
 	}
  
-	__declspec(dllexport) void ExtensionFinalizer(void* extData)
+	__declspec(dllexport) void PSWUExtensionFinalizer(void* extData)
 	{
 		return;
 	}
