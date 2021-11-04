@@ -9,15 +9,15 @@
  * See LICENSE.txt for full license information.
  */
 package com.hurlant.crypto.tls {
-import com.hurlant.crypto.cert.X509Certificate;
-import com.hurlant.crypto.hash.MD5;
-import com.hurlant.util.Hex;
-
-import flash.utils.ByteArray;
-	import com.hurlant.util.der.PEM;
-	import com.hurlant.crypto.rsa.RSAKey;
-	import com.hurlant.crypto.cert.X509CertificateCollection;
 	import com.hurlant.crypto.cert.MozillaRootCertificates;
+	import com.hurlant.crypto.cert.X509Certificate;
+	import com.hurlant.crypto.cert.X509CertificateCollection;
+	import com.hurlant.crypto.hash.MD5;
+	import com.hurlant.crypto.rsa.RSAKey;
+	import com.hurlant.util.Hex;
+	import com.hurlant.util.der.PEM;
+	
+	import flash.utils.ByteArray;
 	
 	public class TLSConfig {
 		public var entity:uint; // SERVER | CLIENT
@@ -29,6 +29,7 @@ import flash.utils.ByteArray;
 		
 		public var compressions:Array;
 		public var ignoreCommonNameMismatch:Boolean = false;
+		public var trustExpiredCertificates:Boolean = false;
 		public var trustAllCertificates:Boolean = false;
 		public var trustSelfSignedCertificates:Boolean = false;
 		public var promptUserForAcceptCert:Boolean = false;
@@ -36,8 +37,11 @@ import flash.utils.ByteArray;
 		public var localKeyStore:X509CertificateCollection;
 		public var version:uint;
 		
+		//карта md5 доверенных сертификатов
+		public var trustedCertificates:Object = {};
+		
 		public function TLSConfig(	entity:uint, cipherSuites:Array = null, compressions:Array = null, 
-									certificate:ByteArray = null, privateKey:RSAKey = null, CAStore:X509CertificateCollection = null, ver:uint = 0x00) {
+									certificate:ByteArray = null, privateKey:RSAKey = null, CAStore:X509CertificateCollection = null, ver:uint = 0x00, trustedCertificates:X509CertificateCollection = null ) {
 			this.entity = entity;
 			this.cipherSuites = cipherSuites;
 			this.compressions = compressions;
@@ -70,18 +74,26 @@ import flash.utils.ByteArray;
 			certificate = PEM.readCertIntoArray(cert);
 			privateKey = PEM.readRSAPrivateKey(key);
 		}
-
-
-		//TODO to review
-		private var trustedCertificates:Object = {};
-		public function addTrustedCertificate(cert:ByteArray):void {
+		
+		/**
+		 * Add own your own trusted certificate
+		 * @param cert A ByteArray object containing a DER-encoded X.509 digital certificate.
+		 */
+		public function addTrustedCertificate(cert:ByteArray):void
+		{
 			var md5:String = Hex.fromArray(new MD5().hash(cert));
 			trustedCertificates[md5] = true;
 		}
-		public function isTrustedCertificate(cert:X509Certificate):Boolean {
+		
+		/**
+		 * Check whether the certificate is marked as trusted
+		 * @param cert
+		 * @return
+		 */
+		public function isTrustedCertificate(cert:X509Certificate):Boolean
+		{
 			var md5:String = cert.md5;
 			return trustedCertificates[md5];
 		}
-
 	}
 }

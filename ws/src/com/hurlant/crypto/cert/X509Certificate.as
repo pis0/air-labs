@@ -13,30 +13,34 @@ package com.hurlant.crypto.cert {
 	import com.hurlant.crypto.hash.MD5;
 	import com.hurlant.crypto.hash.SHA1;
 	import com.hurlant.crypto.rsa.RSAKey;
+	import com.hurlant.crypto.tls.TLSError;
 	import com.hurlant.util.ArrayUtil;
 	import com.hurlant.util.Base64;
-import com.hurlant.util.Hex;
-import com.hurlant.util.der.ByteString;
+	import com.hurlant.util.Hex;
+	import com.hurlant.util.der.ByteString;
 	import com.hurlant.util.der.DER;
 	import com.hurlant.util.der.OID;
 	import com.hurlant.util.der.ObjectIdentifier;
 	import com.hurlant.util.der.PEM;
-	import com.hurlant.util.der.PrintableString;
 	import com.hurlant.util.der.Sequence;
 	import com.hurlant.util.der.Type;
+	import com.hurlant.util.der.Type2;
 	
 	import flash.utils.ByteArray;
+	import flash.utils.getTimer;
 	
 	public class X509Certificate {
 		private var _loaded:Boolean;
 		private var _param:*;
-		private var _obj:Object;
+		//private var _obj:Object; // old ASN-1 parsing
+		private var _obj2:Object; // new ASN-1 library
+		private var _bytes:ByteArray;
+		
 		public function X509Certificate(p:*) {
 			_loaded = false;
 			_param = p;
 			// lazy initialization, to avoid unnecessary parsing of every builtin CA at start-up.
 		}
-
 		private function load():void {
 			if (_loaded) return;
 			var p:* = _param;
@@ -46,31 +50,33 @@ import com.hurlant.util.der.ByteString;
 			} else if (p is ByteArray) {
 				b = p;
 			}
-
-			//TODO to review
-			trace("HERE 0");
 			_bytes = b;
-
 			if (b!=null) {
-				_obj = DER.parse(b, Type.TLS_CERT);
+				var t1:int = getTimer();
+				//_obj = DER.parse(b, Type.TLS_CERT);
+				//trace("Type 1 method: "+(getTimer()-t1)+"ms");
+				//b.position = 0;
+				t1 = getTimer();
+				_obj2 = Type2.Certificate.fromDER(b, b.length);
+				trace("Type 2 method: "+(getTimer()-t1)+"ms");
 				_loaded = true;
 			} else {
 				throw new Error("Invalid x509 Certificate parameter: "+p);
 			}
 		}
-
-
-
-		public function isSigned(store:X509CertificateCollection, CAs:X509CertificateCollection, time:Date=null):Boolean {
+		public function isSigned(store:X509CertificateCollection, CAs:X509CertificateCollection, time:Date=null, trustExpiredCertificates:Boolean = false):Boolean {
 			load();
 			// check timestamps first. cheapest.
 			if (time==null) {
 				time = new Date;
 			}
-			var notBefore:Date = getNotBefore();
-			var notAfter:Date = getNotAfter();
-			if (time.getTime()<notBefore.getTime()) return false; // cert isn't born yet.
-			if (time.getTime()>notAfter.getTime()) return false;  // cert died of old age.
+			if(!trustExpiredCertificates)
+			{
+				var notBefore:Date = getNotBefore();
+				var notAfter:Date = getNotAfter();
+				if (time.getTime()<notBefore.getTime()) return false; // cert isn't born yet.
+				if (time.getTime()>notAfter.getTime()) return false;  // cert died of old age.
+			}
 			// check signature.
 			var subject:String = getIssuerPrincipal();
 			// try from CA first, since they're treated better.
@@ -120,9 +126,20 @@ import com.hurlant.util.der.ByteString;
 				default:
 					return false;
 			}
-			var data:ByteArray = _obj.signedCertificate_bin;
+			//var data:ByteArray = _obj.signedCertificate_bin;
+			var data:ByteArray = _obj2.toBeSigned_bin;
 			var buf:ByteArray = new ByteArray;
-			key.verify(_obj.encrypted, buf, _obj.encrypted.length);
+			//key.verify(_obj.encrypted, buf, _obj.encrypted.length);
+			//key.verify(_obj2.signature, buf, _obj2.signature.length);
+			try
+			{
+				key.verify(_obj2.signature, buf, _obj2.signature.length);
+			}
+			catch( e : TLSError )
+			{
+				trace("verification of key failed in verifyCertificate: " + e.message );
+				return( false );
+			}
 			buf.position=0;
 			data = hash.hash(data);
 			var obj:Object = DER.parse(buf, Type.RSA_SIGNATURE);
@@ -162,9 +179,10 @@ import com.hurlant.util.der.ByteString;
 					oid = OID.MD5_ALGORITHM;
 					break;
 				default:
-					return null;
+					return null
 			}
-			var data:ByteArray = _obj.signedCertificate_bin;
+			//var data:ByteArray = _obj.signedCertificate_bin;
+			var data:ByteArray = _obj2.toBeSigned_bin;
 			data = hash.hash(data);
 			var seq1:Sequence = new Sequence;
 			seq1[0] = new Sequence;
@@ -180,7 +198,8 @@ import com.hurlant.util.der.ByteString;
 		
 		public function getPublicKey():RSAKey {
 			load();
-			var pk:ByteArray = _obj.signedCertificate.subjectPublicKeyInfo.subjectPublicKey as ByteArray;
+			//var pk:ByteArray = _obj.signedCertificate.subjectPublicKeyInfo.subjectPublicKey as ByteArray;
+			var pk:ByteArray = _obj2.toBeSigned.subjectPublicKeyInfo.subjectPublicKey as ByteArray;
 			pk.position = 0;
 			var rsaKey:Object = DER.parse(pk, [{name:"N"},{name:"E"}]);
 			return new RSAKey(rsaKey.N, rsaKey.E.valueOf());
@@ -196,7 +215,8 @@ import com.hurlant.util.der.ByteString;
 		 */
 		public function getSubjectPrincipal():String {
 			load();
-			return Base64.encodeByteArray(_obj.signedCertificate.subject_bin);
+			//return Base64.encodeByteArray(_obj.signedCertificate.subject_bin);
+			return Base64.encodeByteArray(_obj2.toBeSigned.subject_bin);
 		}
 		/**
 		 * Returns an issuer principal, as an opaque base64 string.
@@ -208,43 +228,59 @@ import com.hurlant.util.der.ByteString;
 		 */
 		public function getIssuerPrincipal():String {
 			load();
-			return Base64.encodeByteArray(_obj.signedCertificate.issuer_bin);
+			//return Base64.encodeByteArray(_obj.signedCertificate.issuer_bin);
+			return Base64.encodeByteArray(_obj2.toBeSigned.issuer_bin);
 		}
 		public function getAlgorithmIdentifier():String {
-			return _obj.algorithmIdentifier.algorithmId.toString();
+			//return _obj.algorithmIdentifier.algorithmId.toString();
+			return _obj2.algorithm.algorithm.toString();
 		}
 		public function getNotBefore():Date {
-			return _obj.signedCertificate.validity.notBefore.date;
+			//return _obj.signedCertificate.validity.notBefore.date;
+			return _obj2.toBeSigned.validity.notBefore.utcTime;
 		}
 		public function getNotAfter():Date {
-			return _obj.signedCertificate.validity.notAfter.date;
+			//return _obj.signedCertificate.validity.notAfter.date;
+			return _obj2.toBeSigned.validity.notAfter.utcTime;
 		}
 		
 		public function getCommonName():String {
-			var subject:Sequence = _obj.signedCertificate.subject;
-			return (subject.findAttributeValue(OID.COMMON_NAME) as PrintableString).getString();
+			//var subject:Sequence = _obj.signedCertificate.subject;
+			var subject:Array = _obj2.toBeSigned.subject.sequence;
+			for (var i:int=0;i<subject.length;i++) {
+				var e:Object = subject[i][0];
+				if (e.commonName) {
+					// not sure I like this.
+					var obj:* = e.commonName.value, val:*;
+					for (var t:String in obj) { val=obj[t]; break}
+					return val;
+				}
+			}
+//			return (subject.findAttributeValue(OID.COMMON_NAME) as PrintableString).getString();
+			return "hi";
 		}
-
-
-		//TODO to review
-		private var _bytes:ByteArray;
+		
 		private var _md5:String;
+		/**
+		 * get md5 hash for certificate
+		 * @return 
+		 */
 		public function get md5():String
 		{
-			if(_md5)
+			if(_md5) 
 			{
 				return _md5;
 			}
-			if (_bytes)
+			
+			if (_bytes) 
 			{
 				_md5 = Hex.fromArray(new MD5().hash(_bytes));
-			} else
+			} else 
 			{
 				throw new Error("get md5: Invalid x509 Certificate parameter");
 			}
+			
 			return _md5;
 		}
-
-
 	}
 }

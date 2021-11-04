@@ -1,5 +1,10 @@
 package {
 
+import com.hurlant.crypto.tls.TLSConfig;
+import com.hurlant.crypto.tls.TLSEngine;
+import com.hurlant.crypto.tls.TLSSecurityParameters;
+import com.hurlant.crypto.tls.TLSSocket;
+import com.hurlant.util.der.PEM;
 import com.worlize.websocket.WebSocket;
 import com.worlize.websocket.WebSocketConfig;
 import com.worlize.websocket.WebSocketErrorEvent;
@@ -7,10 +12,17 @@ import com.worlize.websocket.WebSocketEvent;
 import com.worlize.websocket.WebSocketMessage;
 
 import flash.display.Sprite;
+import flash.events.Event;
+import flash.events.IOErrorEvent;
+import flash.events.SecurityErrorEvent;
 import flash.net.SecureSocket;
 import flash.utils.ByteArray;
 
 public class Main extends Sprite {
+
+    [Embed(source = "../assets/cert.pem", mimeType = "application/octet-stream")]
+    private static const cert_pem: Class;
+
     function Main() {
 
         createWS();
@@ -19,20 +31,17 @@ public class Main extends Sprite {
 
     private var websocket:WebSocket;
 
-
-    private var secureSocket:SecureSocket = new SecureSocket();
-
     private function createWS():void {
 
         websocket = new WebSocket(
-                "wss://dev-praia1engine.pipastudios.com/ws?port=11103",
+                "ws://dev-praia1chat.pipastudios.com/ws?port=11101",
                 "*" //,
                 //"TLS1.2"//["dumb-increment-protocol", "lws-mirror-protocol", "fraggle-protocol"] //["superchat", "boringchat"]
         );
 
-        var config:WebSocketConfig = new WebSocketConfig();
-        config.assembleFragments = false;
-        websocket.config = config;
+//        var config:WebSocketConfig = new WebSocketConfig();
+//        config.assembleFragments = true;
+//        websocket.config = config;
 
         websocket.debug = true;
 
@@ -42,6 +51,7 @@ public class Main extends Sprite {
         websocket.addEventListener(WebSocketErrorEvent.CONNECTION_FAIL, handleConnectionFail);
         websocket.connect();
     }
+
 
     private function handleWebSocketOpen(event:WebSocketEvent):void {
         trace("Connected");

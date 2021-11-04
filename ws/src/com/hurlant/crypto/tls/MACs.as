@@ -31,17 +31,17 @@ package com.hurlant.crypto.tls {
 			if (hash==NULL) return null;
 
 			//TODO to review
-			return Crypto.getHMAC(['',"md5","sha1", "sha256"][hash]);
 			//return Crypto.getHMAC(['',"md5","sha1"][hash]);
-
+			return Crypto.getHMAC(['',"md5","sha1", "sha256"][hash]);
 		}
 	
 		public static function getMAC(hash:uint):MAC {
 
 			//TODO to review
-			return Crypto.getMAC(['',"md5","sha1", "sha256"][hash]);
-			///return Crypto.getMAC(['', "md5", "sha1"][hash]);
-		}
-
+			//return Crypto.getMAC(['', "md5", "sha1"][hash]);
+			return Crypto.getMAC(['', "md5", "sha1", "sha256"][hash]);
+		} 
+		
+		
 	}
 }

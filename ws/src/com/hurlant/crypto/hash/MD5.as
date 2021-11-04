@@ -25,8 +25,6 @@ package com.hurlant.crypto.hash
 	{
 		public static const HASH_SIZE:int = 16;
 		public var pad_size:int = 48;
-
-        public function MD5() { }
 		
 		public function getInputSize():uint
 		{
@@ -54,7 +52,7 @@ package com.hurlant.crypto.hash
 			// convert ByteArray to an array of uint
 			src.position=0;
 			var a:Array = [];
-			src.endian=Endian.LITTLE_ENDIAN;
+			src.endian=Endian.LITTLE_ENDIAN
 			for (var i:uint=0;i<src.length;i+=4) {
 				a.push(src.readUnsignedInt());
 			}

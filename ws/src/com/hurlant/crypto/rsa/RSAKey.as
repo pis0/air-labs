@@ -12,20 +12,11 @@
 package com.hurlant.crypto.rsa
 {
 	import com.hurlant.crypto.prng.Random;
+	import com.hurlant.crypto.tls.TLSError;
 	import com.hurlant.math.BigInteger;
 	import com.hurlant.util.Memory;
 	
 	import flash.utils.ByteArray;
-	import com.hurlant.crypto.hash.IHash;
-	import com.hurlant.util.Hex;
-	import com.hurlant.util.der.DER;
-	import com.hurlant.util.der.OID;
-	import com.hurlant.util.ArrayUtil;
-	import com.hurlant.util.der.Type;
-	import com.hurlant.util.der.Sequence;
-	import com.hurlant.util.der.ObjectIdentifier;
-	import com.hurlant.util.der.ByteString;
-	import com.hurlant.crypto.tls.TLSError;
 	
 	/**
 	 * Current limitations:
@@ -41,7 +32,7 @@ package com.hurlant.crypto.rsa
 		// extended private key
 		public var p:BigInteger;
 		public var q:BigInteger;
-		public var dmp1:BigInteger;
+		public var dmp1:BigInteger
 		public var dmq1:BigInteger;
 		public var coeff:BigInteger;
 		// flags. flags are cool.
@@ -139,8 +130,12 @@ package com.hurlant.crypto.rsa
 				var block:BigInteger = new BigInteger(src, bl, true);
 				var chunk:BigInteger = op(block);
 				var b:ByteArray = pad(chunk, bl, padType);
-				if (b == null) 
-					 throw new TLSError( "Decrypt error - padding function returned null!", TLSError.decode_error );
+//				if (b == null) 
+//					 throw new TLSError( "Decrypt error - padding function returned null!", TLSError.decode_error );
+				if( b == null )
+				{
+					throw new TLSError( "unpad function in _decrypt returned null!", TLSError.decrypt_error );
+				}
 				// if (b != null)
 				dst.writeBytes(b);
 			}

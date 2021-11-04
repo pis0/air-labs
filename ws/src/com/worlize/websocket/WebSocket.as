@@ -155,10 +155,10 @@ import flash.net.Socket;
 			handshakeTimer.addEventListener(TimerEvent.TIMER, handleHandshakeTimer);
 
 			//TODO to review
-//			rawSocket = socket = new Socket();
-			rawSocket = socket = SecureSocket.isSupported
-					? new SecureSocket()
-					: new Socket();
+			rawSocket = socket = new Socket();
+//			rawSocket = socket = SecureSocket.isSupported
+//					? new SecureSocket()
+//					: new Socket();
 
 			socket.timeout = timeout;
 			
@@ -167,7 +167,7 @@ import flash.net.Socket;
 										  null, null, null, null, null,
 										  TLSSecurityParameters.PROTOCOL_VERSION
 				);
-				tlsConfig.trustAllCertificates = true;
+//				tlsConfig.trustAllCertificates = true;
 				tlsConfig.ignoreCommonNameMismatch = true;
 
 				//TODO to review

@@ -14,7 +14,6 @@ package com.hurlant.crypto.tls {
 	import com.hurlant.crypto.cert.X509CertificateCollection;
 	import com.hurlant.crypto.prng.Random;
 	import com.hurlant.util.ArrayUtil;
-	import com.hurlant.util.Hex;
 	
 	import flash.events.Event;
 	import flash.events.EventDispatcher;
@@ -23,8 +22,8 @@ package com.hurlant.crypto.tls {
 	import flash.utils.IDataInput;
 	import flash.utils.IDataOutput;
 	import flash.utils.clearTimeout;
+	import flash.utils.getTimer;
 	import flash.utils.setTimeout;
-	import com.hurlant.crypto.prng.ARC4;
 
 
 	[Event(name="close", type="flash.events.Event")]
@@ -59,8 +58,6 @@ package com.hurlant.crypto.tls {
 		public static const CLIENT:uint = 1;
 		public var protocol_version:uint;
 
-
-	
 		private static const PROTOCOL_HANDSHAKE:uint = 22;
 		private static const PROTOCOL_ALERT:uint = 21;
 		private static const PROTOCOL_CHANGE_CIPHER_SPEC:uint = 20;
@@ -197,6 +194,8 @@ package com.hurlant.crypto.tls {
 		private var _packetQueue:Array = [];
 		private function parseRecord(stream:IDataInput):void {
 			var p:ByteArray;
+			var t:uint = getTimer();
+			var recordLen:int = stream.bytesAvailable;
 			while(_state!=STATE_CLOSED && stream.bytesAvailable>4) {
 				
 				if (_packetQueue.length>0) {
@@ -220,12 +219,9 @@ package com.hurlant.crypto.tls {
 				var type:uint = stream.readByte();
 				var ver:uint = stream.readShort();
 				var length:uint = stream.readShort();
-
-				// support compression and encryption overhead.
-				if (length>16384+2048) {
+				if (length>16384+2048) { // support compression and encryption overhead.
 					throw new TLSError("Excessive TLS Record length: "+length, TLSError.record_overflow);
 				}
-
 				// Can pretty much assume that if I'm here, I've got a default config, so let's use it.
 				if (ver != _securityParameters.version ) {
 					throw new TLSError("Unsupported TLS version: "+ver.toString(16), TLSError.protocol_version);
@@ -240,6 +236,8 @@ package com.hurlant.crypto.tls {
 					_packetQueue.push({type:type, length:length, data:p});
 				}
 			}
+			
+			//trace("TLSEngine::parseRecord ", (getTimer() - t), " ms", "Record length: ", recordLen, " bytes");
 		}
 		
 		
@@ -253,6 +251,7 @@ package com.hurlant.crypto.tls {
 		 * Modified to support the notion of a handler map(see above ), since it makes for better clarity (IMHO of course).
 		 */
 		private function parseOneRecord(type:uint, length:uint, p:ByteArray):void {
+
 			p = _currentReadState.decrypt(type, length, p);
 			if (p.length>16384) { 
 				throw new TLSError("Excessive Decrypted TLS Record length: "+p.length, TLSError.record_overflow);
@@ -352,6 +351,7 @@ package com.hurlant.crypto.tls {
 			// I modified the individual handlers so they encapsulate all possible knowledge 
 			// about the incoming packet type, so no previous handling or massaging of the data 
 			// is required, as was the case using the switch statement. BP
+			trace("parseHandshake, type = ", type);
 			if (_entityHandshakeHandlers.hasOwnProperty( type )) {
 				if (_entityHandshakeHandlers[ type ] is Function) 
 					_entityHandshakeHandlers[ type ]( rec );
@@ -403,6 +403,7 @@ package com.hurlant.crypto.tls {
 			
 			var data:ByteArray = _securityParameters.computeVerifyData(1-_entity, _handshakePayloads);
 
+			//trace(this, "verifyHandshake");
 			if (ArrayUtil.equals(verifyData, data)) {
 				_state = STATE_READY;
 				dispatchEvent(new TLSEvent(TLSEvent.READY));
@@ -577,9 +578,10 @@ package com.hurlant.crypto.tls {
 			_securityParameters.setCipher(cipher);
 			
 			var comp:int = findMatch(_config.compressions, v.compressions);
-			if (comp == 01) {
+			if (comp == 1) {
 				throw new TLSError("No compatible compression method found.", TLSError.handshake_failure);
 			}
+
 			_securityParameters.setCompression(comp);
 			_securityParameters.setClientRandom(v.random);
 
@@ -688,6 +690,7 @@ package com.hurlant.crypto.tls {
 		}
 		
 		private function sendHandshake(type:uint, len:uint, payload:IDataInput):void {
+			//trace("sendHandshake, type = ", type);
 			var rec:ByteArray = new ByteArray;
 			rec.writeByte(type);
 			rec.writeByte(0);
@@ -723,13 +726,14 @@ package com.hurlant.crypto.tls {
 			}
 			rec.position = 0;
 			rec.writeBytes(data, offset, len);
-			// trace("Data I'm sending..." + Hex.fromArray( data ));
+			// traceFunction("Data I'm sending..." + Hex.fromArray( data ));
 			rec.position = 0;
 			sendRecord(PROTOCOL_APPLICATION_DATA, rec);
 		}
 		private function sendRecord(type:uint, payload:ByteArray):void {
 			// encrypt
 			payload = _currentWriteState.encrypt(type, payload);
+			//trace(this, "sendRecord, payload.length = ", payload.length, " bytes");
 			
 			_oStream.writeByte(type);
 			_oStream.writeShort(_securityParameters.version);
@@ -777,8 +781,6 @@ package com.hurlant.crypto.tls {
 		 */
 		private function loadCertificates( rec:ByteArray ):void {
 
-			trace(new Error().getStackTrace());
-
 			var tmp:uint = rec.readByte();
 			var certs_len:uint = (tmp<<16) | rec.readShort();
 			var certs:Array = [];
@@ -795,6 +797,7 @@ package com.hurlant.crypto.tls {
 			var firstCert:X509Certificate = null;
 			for (var i:int=0;i<certs.length;i++) {
 				var x509:X509Certificate = new X509Certificate(certs[i]);
+				//Logger.debug("peer sert = \r", Hex.fromArray(certs[i]));
 				_store.addCertificate(x509);
 				if (firstCert==null) {
 					firstCert = x509;
@@ -805,20 +808,19 @@ package com.hurlant.crypto.tls {
 			// Test first for trust override parameters
 			// This nice trust override stuff comes from Joey Parrish via As3crypto forums
 			var certTrusted:Boolean;
-
-			//TODO to review
-			if (_config.isTrustedCertificate(firstCert)) {
-				certTrusted = true;
-			}
-			//////////////
-			else if (_config.trustAllCertificates) {
+			if (_config.trustAllCertificates) {
 				certTrusted = true; // Blatantly trust everything
+			} else if(_config.isTrustedCertificate(firstCert))
+			{
+				certTrusted = true;
+				//trace(this, "external trusted certificate");
 			} else if (_config.trustSelfSignedCertificates ) {
 				// Self-signed certs
-				certTrusted = firstCert.isSelfSigned(new Date);
-			} else {
+				certTrusted = firstCert.isSelfSigned(new Date); 
+			} else
+			{
 				// Certs with a signer in the CA store - realistically, I should setup an event chain to handle this
-				certTrusted = firstCert.isSigned(_store, _config.CAStore );
+				certTrusted = firstCert.isSigned(_store, _config.CAStore, null, _config.trustExpiredCertificates );
 			}
 	
 			// Good so far
@@ -874,9 +876,6 @@ package com.hurlant.crypto.tls {
 		private function parseAlert(p:ByteArray):void {
 			//throw new Error("Alert not implemented.");
 			// 7.2
-
-			trace(new Error().getStackTrace());
-
 			trace("GOT ALERT! type="+p[1]);
 			close();
 		}

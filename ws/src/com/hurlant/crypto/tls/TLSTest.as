@@ -104,8 +104,8 @@ package com.hurlant.crypto.tls {
 			var serverConfig:TLSConfig = new TLSConfig(TLSEngine.SERVER, null, null, null, null, null, SSLSecurityParameters.PROTOCOL_VERSION);
 
 
-			var cert:ByteArray = new myCert();
-			var key:ByteArray = new myKey();
+			var cert:ByteArray = new myCert;
+			var key:ByteArray = new myKey;
 			serverConfig.setPEMCertificate(cert.readUTFBytes(cert.length), key.readUTFBytes(key.length));
 			// tmp, for debugging. currently useless
 			cert.position = 0;
@@ -158,11 +158,11 @@ package com.hurlant.crypto.tls {
 			})();
 		}
 		
-		private function testHost(hostArg:String, next:Function):void {
-			if (hostArg==null) return;
+		private function testHost(host:String, next:Function):void {
+			if (host==null) return;
 			var t1:int = getTimer();
 			
-			var host:String = hostArg;
+			var host:String = host;
 			var t:TLSSocket = new TLSSocket;
 			t.connect(host, 4433); 
 			t.writeUTFBytes("GET / HTTP/1.0\nHost: "+host+"\n\n");

@@ -48,9 +48,6 @@ package com.hurlant.crypto.hash
 242, 239, 183,  14, 102,  88, 208, 228, 166, 119, 114, 248, 235, 117,  75,  10,
  49,  68,  80, 180, 143, 237,  31,  26, 219, 153, 141,  51, 159,  17, 131,  20 ];
 		
-
-        public function MD2() { }
-
 		public function getInputSize():uint
 		{
 			return 16;

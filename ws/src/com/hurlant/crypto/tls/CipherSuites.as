@@ -12,19 +12,6 @@ package com.hurlant.crypto.tls {
 	import com.hurlant.crypto.hash.SHA1;
 	
 	public class CipherSuites {
-
-
-		/*
-		TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
-		TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
-		TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
-		TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-		TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
-		TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
-		TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
-		TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
-
-		 */
 		
 		
 		// only the lines marked "ok" are currently implemented.
@@ -71,6 +58,17 @@ package com.hurlant.crypto.tls {
 
 
 
+		/*
+		TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+		TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
+		TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+		TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+		//
+		TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+		TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+		TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
+		TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
+		 */
 		//TODO to review
 		public static const TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:uint   = 0xC02F;
 		public static const TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:uint   = 0xC030;
@@ -83,7 +81,8 @@ package com.hurlant.crypto.tls {
 
 
 
-		
+
+
 		private static var _props:Array;
 		
 		init();
@@ -103,7 +102,8 @@ package com.hurlant.crypto.tls {
 			// more later
 
 			//TODO to review
-			_props[TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]	= new CipherSuites(BulkCiphers.AES_128, MACs.SHA256, KeyExchanges.DHE_RSA);
+			_props[TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]	= new CipherSuites(BulkCiphers.AES_128, MACs.SHA256, KeyExchanges.ECDHE_RSA);
+			_props[TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256]	= new CipherSuites(BulkCiphers.AES_128, MACs.SHA256, KeyExchanges.ECDHE_RSA);
 		}
 		
 		private static function getProp(cipher:uint):CipherSuites {
@@ -131,7 +131,12 @@ package com.hurlant.crypto.tls {
 				TLS_RSA_WITH_AES_128_CBC_SHA,
 				TLS_RSA_WITH_RC4_128_SHA,
 				TLS_RSA_WITH_RC4_128_MD5,
-				TLS_RSA_WITH_DES_CBC_SHA
+				TLS_RSA_WITH_DES_CBC_SHA,
+
+				// TODO to review
+				TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+				TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+
 			];
 		}
 		

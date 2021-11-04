@@ -12,8 +12,9 @@
  * See LICENSE.txt for full license information.
  */
 package com.hurlant.crypto.tls {
+	import com.hurlant.crypto.cert.X509Certificate;
+	
 	import flash.events.Event;
-	import flash.events.EventDispatcher;
 	import flash.events.IOErrorEvent;
 	import flash.events.ProgressEvent;
 	import flash.events.SecurityErrorEvent;
@@ -25,7 +26,6 @@ package com.hurlant.crypto.tls {
 	import flash.utils.IDataOutput;
 	import flash.utils.clearTimeout;
 	import flash.utils.setTimeout;
-	import com.hurlant.crypto.cert.X509Certificate;
 	
 	
 	[Event(name="close", type="flash.events.Event")]
@@ -54,7 +54,7 @@ package com.hurlant.crypto.tls {
 		private var _socket:Socket;
 		private var _config:TLSConfig;
 		private var _engine:TLSEngine;
-		public static const ACCEPT_PEER_CERT_PROMPT:String = "acceptPeerCertificatePrompt";
+		public static const ACCEPT_PEER_CERT_PROMPT:String = "acceptPeerCertificatePrompt"
 		
 		public function TLSSocket(host:String = null, port:int = 0, config:TLSConfig = null) {
 			_config = config;
@@ -103,6 +103,7 @@ package com.hurlant.crypto.tls {
 		
 		private function onTLSReady(event:TLSEvent):void {
 			_ready = true;
+			//trace(this, "onTLSReady");
 			scheduleWrite();
 		}
 		
@@ -121,6 +122,7 @@ package com.hurlant.crypto.tls {
 		private function commitWrite():void {
 			clearTimeout(_writeScheduler);
 			_writeScheduler = 0;
+			//trace(this, "commitWrite, _ready = ", _ready);
 			if (_ready) {
 				_engine.sendApplicationData(_oStream);
 				_oStream.length = 0;
@@ -131,7 +133,7 @@ package com.hurlant.crypto.tls {
 		override public function close():void {
 			_ready = false;
 			_engine.close();
-			if (_socket.connected) {
+			if (_socket && _socket.connected) {
 				_socket.flush();
 				_socket.close();
 			}
@@ -143,10 +145,13 @@ package com.hurlant.crypto.tls {
 		override public function connect(host:String, port:int):void {
 			init(new Socket, _config, host);
 			_socket.connect(host, port);
-			_engine.start();
+			//_engine.start();
 		}
 		
 		public function releaseSocket() : void {
+			if(!_socket)
+				return;
+			
 			_socket.removeEventListener(Event.CONNECT, dispatchEvent);
 			_socket.removeEventListener(IOErrorEvent.IO_ERROR, dispatchEvent);
 			_socket.removeEventListener(SecurityErrorEvent.SECURITY_ERROR, dispatchEvent);
@@ -198,17 +203,20 @@ package com.hurlant.crypto.tls {
 				throw new Error("Cannot STARTTLS on a socket that isn't connected.");
 			}
 			init(socket, config, host);
-			_engine.start();
+			//_engine.start();
 		}
 		
 		private function init(socket:Socket, config:TLSConfig, host:String):void {
 			_iStream = new ByteArray;
 			_oStream = new ByteArray;
 			_iStream_cursor = 0;
+
 			objectEncoding = ObjectEncoding.DEFAULT;
 			endian = Endian.BIG_ENDIAN;
+
 			_socket = socket;
-			_socket.addEventListener(Event.CONNECT, dispatchEvent);
+//			_socket.addEventListener(Event.CONNECT, dispatchEvent);
+			_socket.addEventListener(Event.CONNECT, onSocketConnected);
 			_socket.addEventListener(IOErrorEvent.IO_ERROR, dispatchEvent);
 			_socket.addEventListener(SecurityErrorEvent.SECURITY_ERROR, dispatchEvent);
 			_socket.addEventListener(Event.CLOSE, dispatchEvent);
@@ -218,13 +226,18 @@ package com.hurlant.crypto.tls {
 			}
 			_engine = new TLSEngine(config, _socket, _socket, host);
 			_engine.addEventListener(TLSEvent.DATA, onTLSData);
-			_engine.addEventListener( TLSEvent.PROMPT_ACCEPT_CERT, onAcceptCert );
+			_engine.addEventListener(TLSEvent.PROMPT_ACCEPT_CERT, onAcceptCert );
 			_engine.addEventListener(TLSEvent.READY, onTLSReady);
 			_engine.addEventListener(Event.CLOSE, onTLSClose);
 			_engine.addEventListener(ProgressEvent.SOCKET_DATA, function(e:*):void { if(connected) _socket.flush(); });
 			_socket.addEventListener(ProgressEvent.SOCKET_DATA, _engine.dataAvailable);
 
 			_ready = false;
+		}
+		private function onSocketConnected(event:Event):void
+		{
+			_engine.start();
+			dispatchEvent(event);
 		}
 		
 		override public function flush():void {
@@ -241,7 +254,7 @@ package com.hurlant.crypto.tls {
 		}
 		
 		override public function readBytes(bytes:ByteArray, offset:uint = 0, length:uint = 0):void {
-			_iStream.readBytes(bytes, offset, length);
+			return _iStream.readBytes(bytes, offset, length);
 		}
 		
 		override public function readDouble():Number {

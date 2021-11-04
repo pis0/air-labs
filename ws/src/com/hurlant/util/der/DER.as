@@ -48,7 +48,7 @@ package com.hurlant.util.der
 				}
 			}
 			// data
-			var b:ByteArray;
+			var b:ByteArray
 			switch (type) {
 				case 0x00: // WHAT IS THIS THINGY? (seen as 0xa0)
 					// (note to self: read a spec someday.)
@@ -63,7 +63,7 @@ package com.hurlant.util.der
 						arrayStruct = arrayStruct.concat();
 					}
 					while (der.position < p+len) {
-						var tmpStruct:Object = null;
+						var tmpStruct:Object = null
 						if (arrayStruct!=null) {
 							tmpStruct = arrayStruct.shift();
 						}
@@ -150,6 +150,17 @@ package com.hurlant.util.der
 					var ut:UTCTime = new UTCTime(type, len);
 					ut.setUTCTime(der.readMultiByte(len, "US-ASCII"));
 					return ut;
+				
+				// support for type 12
+				case 0x0C: // V_ASN1_UTF8STRING
+					ps = new PrintableString(type, len);
+					ps.setString(der.readMultiByte(len, "utf-8"));
+					return ps;
+					// support for type 22
+				case 0x16: // V_ASN1_IA5STRING
+					ps = new PrintableString(type, len);
+					ps.setString(der.readMultiByte(len, "x-IA5"));
+					return ps;
 			}
 		}
 		

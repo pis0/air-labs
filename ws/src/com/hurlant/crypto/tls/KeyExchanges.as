@@ -16,6 +16,9 @@ package com.hurlant.crypto.tls {
 		public static const DHE_DSS:uint = 4;
 		public static const DHE_RSA:uint = 5;
 		public static const DH_anon:uint = 6;
+
+		//TODO to review
+		public static const ECDHE_RSA:uint = 7;
 		
 		public static function useRSA(p:uint):Boolean {
 			return (p==RSA);
